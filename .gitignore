@@ -1,4 +1,5 @@
 *.pyc
+*.pkl
 .idea
 .ipynb_checkpoints
 lib/build
