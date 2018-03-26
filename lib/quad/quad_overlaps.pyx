@@ -2,8 +2,8 @@
 import numpy as np
 cimport numpy as np
 
-cdef extern from 'QuadOverlaps.hpp':
-    float QuadOverlaps(np.float32_t* a, np.float32_t* b)
+cdef extern from 'QuadOverlap.hpp':
+    float QuadOverlap(np.float32_t* a, np.float32_t* b)
 
 def quad_overlaps(np.ndarray[np.float32_t, ndim=2] quads,
                   np.ndarray[np.float32_t, ndim=2] query_quads):
@@ -17,6 +17,6 @@ def quad_overlaps(np.ndarray[np.float32_t, ndim=2] quads,
         a = query_quads[k, :]
         for n in range(N):
             b = quads[n, :]
-            overlaps[n, k] = QuadOverlaps(&a[0], &b[0])
+            overlaps[n, k] = QuadOverlap(&a[0], &b[0])
     return overlaps
 

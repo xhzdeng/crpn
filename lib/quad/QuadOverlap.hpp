@@ -202,7 +202,7 @@ PREFIX inline void Push(float* pts, const Point& p) {
   pts[idx * 2 + 1] = p.y;
 }
 
-PREFIX float QuadOverlaps(const float* q1, const float* q2) {
+PREFIX float QuadOverlap(const float* q1, const float* q2) {
   // 0. init
   float pts[MAX_NUM * 2];
   for (int i = 0; i < MAX_NUM * 2; ++i)

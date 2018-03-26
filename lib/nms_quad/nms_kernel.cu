@@ -6,7 +6,7 @@
 // ------------------------------------------------------------------
 
 #include "gpu_nms.hpp"
-#include "QuadOverlaps.hpp"
+#include "QuadOverlap.hpp"
 #include <algorithm>
 #include <vector>
 #include <iostream>
@@ -28,7 +28,7 @@
 int const threadsPerBlock = sizeof(unsigned long long) * 8;
 
 __device__ inline float devIoU(float const * const a, float const * const b) {
-  return QuadOverlaps(a, b);
+  return QuadOverlap(a, b);
 }
 
 __global__ void nms_kernel(const int n_boxes, const float nms_overlap_thresh,

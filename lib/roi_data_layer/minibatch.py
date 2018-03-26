@@ -35,12 +35,12 @@ def get_minibatch(roidb, num_classes):
     if cfg.TRAIN.HAS_RPN:
         assert len(im_scales) == 1, "Single batch only"
         assert len(roidb) == 1, "Single batch only"
+
         # gt boxes: (x1, y1, x2, y2, x3, y3, x4, y4, cls)
         gt_inds = np.where(roidb[0]['gt_classes'] != 0)[0]
         gt_boxes = np.empty((len(gt_inds), 9), dtype=np.float32)
         gt_boxes[:, :8] = roidb[0]['boxes'][gt_inds, :] * np.hstack((im_scales[0], im_scales[0]))
         gt_boxes[:, 8] = roidb[0]['gt_classes'][gt_inds]
-
         # sort points
         gt_boxes[:, :8] = sort_points(gt_boxes[:, :8])
 

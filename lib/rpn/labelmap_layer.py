@@ -71,15 +71,15 @@ class LabelMapLayer(caffe.Layer):
             x4 = np.maximum(np.minimum(x4, map_w - 1), 0)
             y4 = np.maximum(np.minimum(y4, map_h - 1), 0)
 
-            # rescaled or unrescaled?
-            # theta1 = _compute_theta(bbox[0], bbox[1], bbox[4], bbox[5])
-            # theta2 = _compute_theta(bbox[2], bbox[3], bbox[6], bbox[7])
-            # theta3 = _compute_theta(bbox[4], bbox[5], bbox[0], bbox[1])
-            # theta4 = _compute_theta(bbox[6], bbox[7], bbox[2], bbox[3])
-            theta1 = _compute_theta(x1, y1, x3, y3)
-            theta2 = _compute_theta(x2, y2, x4, y4)
-            theta3 = _compute_theta(x3, y3, x1, y1)
-            theta4 = _compute_theta(x4, y4, x2, y2)
+            # before or after?
+            theta1 = _compute_theta(bbox[0], bbox[1], bbox[4], bbox[5])
+            theta2 = _compute_theta(bbox[2], bbox[3], bbox[6], bbox[7])
+            theta3 = _compute_theta(bbox[4], bbox[5], bbox[0], bbox[1])
+            theta4 = _compute_theta(bbox[6], bbox[7], bbox[2], bbox[3])
+            # theta1 = _compute_theta(x1, y1, x3, y3)
+            # theta2 = _compute_theta(x2, y2, x4, y4)
+            # theta3 = _compute_theta(x3, y3, x1, y1)
+            # theta4 = _compute_theta(x4, y4, x2, y2)
 
             # positive sample's index start from 1
             if x1_valid and y1_valid:

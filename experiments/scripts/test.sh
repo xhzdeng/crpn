@@ -14,25 +14,21 @@ EXTRA_ARGS=${array[@]:3:$len}
 EXTRA_ARGS_SLUG=${EXTRA_ARGS// /_}
 
 case $DATASET in
-  TEXT_2005)
+  voc_2005)
     TRAIN_IMDB="voc_2005_trainval"
     TEST_IMDB="voc_2005_test"
-    PT_DIR="text"
     ;;
-  TEXT_2006)
+  voc_2006)
     TRAIN_IMDB="voc_2006_trainval"
     TEST_IMDB="voc_2006_test"
-    PT_DIR="text"
     ;;
-  TEXT_2007)
+  voc_2007)
     TRAIN_IMDB="voc_2007_trainval"
     TEST_IMDB="voc_2007_test"
-    PT_DIR="text"
     ;;
-  TEXT_2008)
+  voc_2008)
     TRAIN_IMDB="voc_2008_trainval"
     TEST_IMDB="voc_2008_test"
-    PT_DIR="text"
     ;;
   *)
     echo "No dataset given"
@@ -45,8 +41,8 @@ exec &> >(tee -a "$LOG")
 echo Logging output to "$LOG"
 
 time ./tools/test_net.py --gpu 0 \
-  --def models/${PT_DIR}/${NET}/test.pt \
+  --def models/${NET}/test.pt \
   --net ${MODEL} \
   --imdb ${TEST_IMDB} \
-  --cfg models/${PT_DIR}/${NET}/config.yml \
+  --cfg models/${NET}/config.yml \
   ${EXTRA_ARGS}

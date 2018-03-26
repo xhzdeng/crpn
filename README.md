@@ -5,14 +5,14 @@ CRPN is a two-stage detection framework for multi-oriented scene text. The code 
 
 ### Requirements
 
-0. Clone the CRPN repository
+0. Clone this repository
     ```
     git clone https://github.com/xhzdeng/crpn.git
     ```
 
 1. Build Caffe and pycaffe (see: [Caffe installation instructions](http://caffe.berkeleyvision.org/installation.html))
     ```
-    cd caffe-fast-rcnn
+    cd $CRPN_ROOT/caffe-fast-rcnn
     make -j8 && make pycaffe
     ```
 
@@ -22,34 +22,36 @@ CRPN is a two-stage detection framework for multi-oriented scene text. The code 
     make
     ```
 
-3. Prepare your own training data. It should have the basic structure followed PASCAL VOC dataset
+3. Prepare your own training data directory. It should have this basic structure.
+	```
+	$VOCdevkit/                           # development kit
+  	$VOCdevkit/VOC2007                    # image sets, annotations, etc.
     ```
-    Create symlinks for YOUR dataset
+   And create symlinks for YOUR dataset
+    ```
     cd $CRPN_ROOT/data
-    ln -s [dataset_path] VOCdevkit
+    ln -s [path] VOCdevkit
     ```
 
-4. Download pre-trained ImageNet VGG-16 models
-    ```
-    You can find it at [Caffe Model Zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
-    ```
+4. Download pre-trained ImageNet VGG-16 models. You can find it at [Caffe Model Zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
+
 5. Train with YOUR dataset
     ```
     cd $CRPN_ROOT
     ./experiments/scripts/train.sh [NET] [MODEL] [DATASET] [ITER_NUM]
     # NET is the network arch to use, only {vgg16} in this implemention
     # MODEL is the pre-trained model you want to use to initial your weights
-    # DATASET points to your dataset
+    # DATASET points to your dataset, please refer the train.sh file
     # IETR_NUM 
     ```
 
-6. Test with YOUR dataset
+6. Test with YOUR models
     ```
     cd $CRPN_ROOT
     ./experiments/scripts/test.sh [NET] [MODEL] [DATASET]
     # NET is the network arch to use, only {vgg16} in this implemention
-    # MODEL is the resulting model you trained before
-    # DATASET points to your dataset
+    # MODEL is the testing model
+    # DATASET points to your dataset, please refer the test.sh file
     ```
     Test outputs are saved under:
     ```
