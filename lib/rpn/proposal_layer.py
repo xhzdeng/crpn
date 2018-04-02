@@ -33,14 +33,14 @@ class ProposalLayer(caffe.Layer):
         # top: (ind, x1, y1, x2, y2, x3, y3, x4, y4)
         layer_params = yaml.load(self.param_str)
         self._feat_stride = layer_params['feat_stride']
-        num_rois = 1 * (cfg.DUAL_ROI + 1)
+        num_rois = 2 if cfg.DUAL_ROI else 1
         top[0].reshape(num_rois, 9)
         if len(top) > 1:
             top[1].reshape(num_rois, 5)
 
     def forward(self, bottom, top):
         # params
-        cfg_key = self.phase # either 'TRAIN' or 'TEST'
+        cfg_key = self.phase  # either 'TRAIN' or 'TEST'
         if cfg_key == 0:
             cfg_ = cfg.TRAIN
         else:
@@ -79,7 +79,7 @@ class ProposalLayer(caffe.Layer):
         proposals = filter_quads(proposals)
         scores = proposals[:, 8]
         proposals = proposals[:, :8]
-        # 3. rescale quads into source image space
+        # 3. rescale quads into raw image space
         proposals = proposals * self._feat_stride
         # 4. quadrilateral non-max surpression
         order = scores.ravel().argsort()[::-1]
@@ -99,12 +99,14 @@ class ProposalLayer(caffe.Layer):
             proposals = np.array([[0, 0, im_info[1], 0, im_info[1], im_info[0], 0, im_info[0]]])
             scores = np.array([0.0])
 
-        # quads
+        # output
+        # top[0]: quads(x1, y1, x2, y2, x3, y3, x4, y4)
+        # top[1]: rois(xmin, ymin, xmax, ymax, theta)
+        # top[2]: scores
         batch_inds = np.zeros((proposals.shape[0], 1), dtype=np.float32)
         blob = np.hstack((batch_inds, proposals.astype(np.float32, copy=False)))
         top[0].reshape(*blob.shape)
         top[0].data[...] = blob
-        # rois = obbs
         if len(top) > 1:
             if cfg.DUAL_ROI:
                 rois = quad_2_obb(np.array(proposals, dtype=np.float32))
@@ -115,7 +117,6 @@ class ProposalLayer(caffe.Layer):
             blob = np.hstack((batch_inds, rois.astype(np.float32, copy=False)))
             top[1].reshape(*blob.shape)
             top[1].data[...] = blob
-        # scores
         if len(top) > 2:
             scores = np.vstack((scores, scores)).transpose()
             top[2].reshape(*scores.shape)
@@ -166,117 +167,121 @@ def _gen_diags(a, b, theta_invl=15, max_diff=1):
     idx_a, idx_b = np.meshgrid(idx_a, idx_b)
     idx_a = idx_a.ravel()
     idx_b = idx_b.ravel()
-    diag_pts = np.hstack((a.pos[idx_a, :], b.pos[idx_b, :]))
-    keep = np.where((diag_pts[:, 0] != diag_pts[:, 2]) | (diag_pts[:, 1] != diag_pts[:, 3]))[0]
-    diag_pts = diag_pts[keep, :]
-    prac_label = compute_link(diag_pts[:, 0:2], diag_pts[:, 2:4], theta_invl)
-    pred_label = get_value(diag_pts[:, 0:2], a.cls)
+    diag_pos = np.hstack((a.pos[idx_a, :], b.pos[idx_b, :]))
+    #
+    keep = np.where((diag_pos[:, 0] != diag_pos[:, 2]) | (diag_pos[:, 1] != diag_pos[:, 3]))[0]
+    diag_pos = diag_pos[keep, :]
+    prac_label = compute_link(diag_pos[:, 0:2], diag_pos[:, 2:4], theta_invl)
+    pred_label = get_value(diag_pos[:, 0:2], a.cls)
     diff_label_a = diff_link(prac_label, pred_label, max_label)
+    #
     prac_label = np.mod(prac_label + max_label / 2, max_label)
-    pred_label = get_value(diag_pts[:, 2:4], b.cls)
+    pred_label = get_value(diag_pos[:, 2:4], b.cls)
     diff_label_b = diff_link(prac_label, pred_label, max_label)
     keep = np.where((diff_label_a <= max_diff) & (diff_label_b <= max_diff))[0]
-    diag_pts = diag_pts[keep, :]
-    diag_pos = np.hstack((get_value(diag_pts[:, 0:2], a.prb), get_value(diag_pts[:, 2:4], b.prb)))
-    return diag_pts, diag_pos
+    diag_pos = diag_pos[keep, :]
+    diag_prb = np.hstack((get_value(diag_pos[:, 0:2], a.prb), get_value(diag_pos[:, 2:4], b.prb)))
+    return diag_pos, diag_prb
 
 
-def _gen_trias(diag_pts, diag_pos, c, theta_invl=15, max_diff=1):
+def _gen_trias(diag_pos, diag_prb, c, theta_invl=15, max_diff=1):
     max_label = 360 / theta_invl
-    idx_a = np.arange(0, diag_pts.shape[0])
+    idx_a = np.arange(0, diag_pos.shape[0])
     idx_b = np.arange(0, c.pos.shape[0])
     idx_a, idx_b = np.meshgrid(idx_a, idx_b)
     idx_a = idx_a.ravel()
     idx_b = idx_b.ravel()
-    tria_pts = np.hstack((diag_pts[idx_a, :], c.pos[idx_b, :]))
-    tria_pos = np.hstack((diag_pos[idx_a, :], get_value(c.pos[idx_b, :], c.prb)))
-    areas = compute_tria_area(tria_pts[:, 0:2], tria_pts[:, 2:4], tria_pts[:, 4:6])
+    tria_pos = np.hstack((diag_pos[idx_a, :], c.pos[idx_b, :]))
+    tria_prb = np.hstack((diag_prb[idx_a, :], get_value(c.pos[idx_b, :], c.prb)))
+    #
+    areas = compute_tria_area(tria_pos[:, 0:2], tria_pos[:, 2:4], tria_pos[:, 4:6])
     keep = np.where(areas != 0)[0]
-    tria_pts = tria_pts[keep, :]
     tria_pos = tria_pos[keep, :]
-    ws, hs, ctr_x, ctr_y = whctrs(tria_pts[:, 0:4])
-    prac_theta = compute_theta(tria_pts[:, 4:6], np.vstack((ctr_x, ctr_y)).transpose())
+    tria_prb = tria_prb[keep, :]
+    ws, hs, ctr_x, ctr_y = whctrs(tria_pos[:, 0:4])
+    prac_theta = compute_theta(tria_pos[:, 4:6], np.vstack((ctr_x, ctr_y)).transpose())
     prac_label = np.floor(prac_theta / theta_invl) + 1
-    pred_label = get_value(tria_pts[:, 4:6], c.cls)
+    pred_label = get_value(tria_pos[:, 4:6], c.cls)
     diff_label = diff_link(prac_label, pred_label, max_label)
     keep = np.where(diff_label <= max_diff)[0]
-    tria_pts = tria_pts[keep, :]
     tria_pos = tria_pos[keep, :]
+    tria_prb = tria_prb[keep, :]
     prac_theta = prac_theta[keep]
+    #
     prac_theta = np.mod(prac_theta + 180.0, 360.0) / 180.0 * np.pi
-    len_diag = np.sqrt(np.sum(np.square(tria_pts[:, 0:2] - tria_pts[:, 2:4]), axis=1)) / 2.
+    len_diag = np.sqrt(np.sum(np.square(tria_pos[:, 0:2] - tria_pos[:, 2:4]), axis=1)) / 2.
     dist_x = len_diag * np.cos(prac_theta[:, 0])
     dist_y = len_diag * np.sin(prac_theta[:, 0])
-    ws, hs, ctr_x, ctr_y = whctrs(tria_pts[:, 0:4])
-    tria_pts[:, 4:6] = np.vstack((ctr_x + dist_x, ctr_y - dist_y)).astype(np.int32, copy=False).transpose()
-    return tria_pts, tria_pos
+    ws, hs, ctr_x, ctr_y = whctrs(tria_pos[:, 0:4])
+    tria_pos[:, 4:6] = np.vstack((ctr_x + dist_x, ctr_y - dist_y)).astype(np.int32, copy=False).transpose()
+    return tria_pos, tria_prb
 
 
-def _get_last_one(tria, pos):
-    map_shape = pos.shape[:2]
+def _get_last_one(tria, d):
+    map_shape = d.prb.shape[:2]
     ws, hs, ctr_x, ctr_y = whctrs(tria[:, 0:4])
-    pts = np.vstack((2 * ctr_x - tria[:, 4], 2 * ctr_y - tria[:, 5])).transpose()
-    pts[:, 0] = np.maximum(np.minimum(pts[:, 0], map_shape[1] - 1), 0)
-    pts[:, 1] = np.maximum(np.minimum(pts[:, 1], map_shape[0] - 1), 0)
-    pts = np.array(pts, dtype=np.int32)
-    pbs = get_value(pts, pos)
-    return pts, pbs
+    pos = np.vstack((2 * ctr_x - tria[:, 4], 2 * ctr_y - tria[:, 5])).transpose()
+    pos[:, 0] = np.maximum(np.minimum(pos[:, 0], map_shape[1] - 1), 0)
+    pos[:, 1] = np.maximum(np.minimum(pos[:, 1], map_shape[0] - 1), 0)
+    pos = np.array(pos, dtype=np.int32)
+    prb = get_value(pos, d.prb)
+    return pos, prb
 
 
-def _clip_trias(tria_pts, tria_pos, map_info, pos):
-    tria_pts[:, 4] = np.maximum(np.minimum(tria_pts[:, 4], map_info[1] - 1), 0)
-    tria_pts[:, 5] = np.maximum(np.minimum(tria_pts[:, 5], map_info[0] - 1), 0)
-    tria_pos[:, 2:] = get_value(tria_pts[:, 4:6], pos)
-    return tria_pts, tria_pos
+def _clip_trias(tria_pos, tria_prb, c, map_info):
+    tria_pos[:, 4] = np.maximum(np.minimum(tria_pos[:, 4], map_info[1] - 1), 0)
+    tria_pos[:, 5] = np.maximum(np.minimum(tria_pos[:, 5], map_info[0] - 1), 0)
+    tria_prb[:, 2:] = get_value(tria_pos[:, 4:6], c.prb)
+    return tria_pos, tria_prb
 
 
 def _proposal_sampling(tl, tr, br, bl, map_info, theta_invl=15, max_diff=1):
-    # 1.0 Diagnolas = top_left + bot_right
+    # DIAG: [top_left, bot_right]
     diag_pos, diag_prb = _gen_diags(tl, br, theta_invl, max_diff)
-    # 1.1.1 Triangles = Diagnolas + top_right
+    # TRIA: [DIAG, top_right]
     tria_pos, tria_prb = _gen_trias(diag_pos, diag_prb, tr, theta_invl, max_diff)
-    # 1.1.2 Quadrangle = Triangles + bot_left
-    temp_pos, temp_prb = _get_last_one(tria_pos, bl.prb)
-    # 1.1.3 Refine top_right
-    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, map_info, tr.prb)
-    # 1.1.4 Assemble
+    # QUAD: [TRIA, bot_left]
+    temp_pos, temp_prb = _get_last_one(tria_pos, bl)
+    # refine top_right
+    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, tr, map_info)
+    # assemble
     score = compute_score(np.hstack((tria_prb, temp_prb)))
     quads = np.hstack((tria_pos[:, 0:2], tria_pos[:, 4:6], tria_pos[:, 2:4], temp_pos))
     quads = np.hstack((quads, score[:, np.newaxis]))
 
-    # 1.2.1 Triangles = Diagnolas + bot_left
+    # TRIA: [DIAG, bot_left]
     tria_pos, tria_prb = _gen_trias(diag_pos, diag_prb, bl, theta_invl, max_diff)
-    # 1.2.2 Quadrangle = Triangles + top_right
-    temp_pos, temp_prb = _get_last_one(tria_pos, tr.prb)
-    # 1.2.3 Refine bot_left
-    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, map_info, bl.prb)
-    # 1.2.4 Assemble
+    # QUAD: [TRIA, top_right]
+    temp_pos, temp_prb = _get_last_one(tria_pos, tr)
+    # refine bot_left
+    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, bl, map_info)
+    # assemble
     score = compute_score(np.hstack((tria_prb, temp_prb)))
     quad = np.hstack((tria_pos[:, 0:2], temp_pos, tria_pos[:, 2:4], tria_pos[:, 4:6]))
     quad = np.hstack((quad, score[:, np.newaxis]))
     quads = np.vstack((quads, quad))
 
-    # 2.0 Diagnolas = bot_left + top_right
+    # DIAG: [bot_left, top_right]
     diag_pos, diag_prb = _gen_diags(bl, tr, theta_invl, max_diff)
-    # 2.1.1 Triangles = Diagnolas + top_left
+    # TRIA: [DIAG, top_left]
     tria_pos, tria_prb = _gen_trias(diag_pos, diag_prb, tl, theta_invl, max_diff)
-    # 2.1.2 Quadrangle = Triangles + bot_right
-    temp_pos, temp_prb = _get_last_one(tria_pos, br.prb)
-    # 2.1.3 Refine top_left
-    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, map_info, tl.prb)
-    # 2.1.4 Assemble
+    # QUAD: [TRIA, bot_right]
+    temp_pos, temp_prb = _get_last_one(tria_pos, br)
+    # refine top_left
+    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, tl, map_info)
+    # assemble
     score = compute_score(np.hstack((tria_prb, temp_prb)))
     quad = np.hstack((tria_pos[:, 4:6], tria_pos[:, 2:4], temp_pos, tria_pos[:, 0:2]))
     quad = np.hstack((quad, score[:, np.newaxis]))
     quads = np.vstack((quads, quad))
 
-    # 2.2.1 Triangles = Diagnolas + bor_right
+    # TRIA: [DIAG, bor_right]
     tria_pos, tria_prb = _gen_trias(diag_pos, diag_prb, br, theta_invl, max_diff)
-    # 2.2.2 Quadrangle = Triangles + top_left
-    temp_pos, temp_prb = _get_last_one(tria_pos, tl.prb)
-    # 2.2.3 Refine bor_right
-    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, map_info, br.prb)
-    # 2.2.4 Assemble
+    # QUAD: [TRIA, top_left]
+    temp_pos, temp_prb = _get_last_one(tria_pos, tl)
+    # refine bor_right
+    tria_pos, tria_prb = _clip_trias(tria_pos, tria_prb, br, map_info)
+    # assemble
     score = compute_score(np.hstack((tria_prb, temp_prb)))
     quad = np.hstack((tria_pos[:, 0:2], temp_pos, tria_pos[:, 2:4], tria_pos[:, 4:6]))
     quad = np.hstack((quad, score[:, np.newaxis]))
@@ -325,7 +330,11 @@ def compute_tria_area(p1, p2, p3):
 
 
 def filter_quads(quads):
-    areas = compute_tria_area(quads[:, 0:2], quads[:, 2:4], quads[:, 4:6])
+    area_1 = compute_tria_area(quads[:, 0:2], quads[:, 2:4], quads[:, 4:6])
+    area_2 = compute_tria_area(quads[:, 0:2], quads[:, 2:4], quads[:, 6:8])
+    area_3 = compute_tria_area(quads[:, 0:2], quads[:, 4:6], quads[:, 6:8])
+    area_4 = compute_tria_area(quads[:, 2:4], quads[:, 4:6], quads[:, 6:8])
+    areas = area_1 * area_2 * area_3 * area_4
     keep = np.where(areas != 0)[0]
     quads = quads[keep, :]
     return quads

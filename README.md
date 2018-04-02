@@ -1,16 +1,18 @@
 # Corner-based Region Proposal Network
 
-CRPN is a two-stage detection framework for multi-oriented scene text. The code is modified from [py-faster-rcnn](https://github.com/rbgirshick/py-faster-rcnn). 
+CRPN is a two-stage detection framework for multi-oriented scene text. It employs corners to estimate the possible locations of text instances and a region-wise subnetwork for further classification and regression. In our experiments, it achieves F-measure of 0.876 and 0.845 on ICDAR 2013 and 2015 respectively. The paper will be released soon. 
 
 
-### Requirements
+### Installation
+
+This code is based on [Caffe](https://github.com/BVLC/caffe) and [py-faster-rcnn](https://github.com/rbgirshick/py-faster-rcnn). It has been tested on Ubuntu 16.04 with CUDA 8.0.
 
 0. Clone this repository
     ```
     git clone https://github.com/xhzdeng/crpn.git
     ```
 
-1. Build Caffe and pycaffe (see: [Caffe installation instructions](http://caffe.berkeleyvision.org/installation.html))
+1. Build Caffe and pycaffe 
     ```
     cd $CRPN_ROOT/caffe-fast-rcnn
     make -j8 && make pycaffe
@@ -22,10 +24,10 @@ CRPN is a two-stage detection framework for multi-oriented scene text. The code 
     make
     ```
 
-3. Prepare your own training data directory. It should have this basic structure.
+3. Prepare your own training data directory. For convenience, it should have this basic structure.
 	```
-	$VOCdevkit/                           # development kit
-  	$VOCdevkit/VOC2007                    # image sets, annotations, etc.
+	$VOCdevkit/
+  	$VOCdevkit/VOC2007                    # image sets, annotations, etc. 
     ```
    And create symlinks for YOUR dataset
     ```
@@ -41,7 +43,7 @@ CRPN is a two-stage detection framework for multi-oriented scene text. The code 
     ./experiments/scripts/train.sh [NET] [MODEL] [DATASET] [ITER_NUM]
     # NET is the network arch to use, only {vgg16} in this implemention
     # MODEL is the pre-trained model you want to use to initial your weights
-    # DATASET points to your dataset, please refer the train.sh file
+    # DATASET points to your dataset, please refer the contents of train.sh
     # IETR_NUM 
     ```
 
@@ -51,7 +53,7 @@ CRPN is a two-stage detection framework for multi-oriented scene text. The code 
     ./experiments/scripts/test.sh [NET] [MODEL] [DATASET]
     # NET is the network arch to use, only {vgg16} in this implemention
     # MODEL is the testing model
-    # DATASET points to your dataset, please refer the test.sh file
+    # DATASET points to your dataset, please refer the contents of test.sh
     ```
     Test outputs are saved under:
     ```

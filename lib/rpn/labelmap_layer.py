@@ -45,6 +45,12 @@ class LabelMapLayer(caffe.Layer):
         labelmap_bl = np.zeros((map_h, map_w), dtype=np.float32)
 
         for bbox in gt_boxes:
+            # compute theta in raw image space
+            theta1 = _compute_theta(bbox[0], bbox[1], bbox[4], bbox[5])
+            theta2 = _compute_theta(bbox[2], bbox[3], bbox[6], bbox[7])
+            theta3 = _compute_theta(bbox[4], bbox[5], bbox[0], bbox[1])
+            theta4 = _compute_theta(bbox[6], bbox[7], bbox[2], bbox[3])
+            # filter corner which is outside of boundary
             x1_valid = (0 <= bbox[0] < img_w)
             y1_valid = (0 <= bbox[1] < img_h)
             x2_valid = (0 <= bbox[2] < img_w)
@@ -53,7 +59,7 @@ class LabelMapLayer(caffe.Layer):
             y3_valid = (0 <= bbox[5] < img_h)
             x4_valid = (0 <= bbox[6] < img_w)
             y4_valid = (0 <= bbox[7] < img_h)
-
+            # map into feature map space
             x1 = int(round(bbox[0] * spatial_scale))
             y1 = int(round(bbox[1] * spatial_scale))
             x2 = int(round(bbox[2] * spatial_scale))
@@ -62,6 +68,7 @@ class LabelMapLayer(caffe.Layer):
             y3 = int(round(bbox[5] * spatial_scale))
             x4 = int(round(bbox[6] * spatial_scale))
             y4 = int(round(bbox[7] * spatial_scale))
+            #
             x1 = np.maximum(np.minimum(x1, map_w - 1), 0)
             y1 = np.maximum(np.minimum(y1, map_h - 1), 0)
             x2 = np.maximum(np.minimum(x2, map_w - 1), 0)
@@ -70,18 +77,7 @@ class LabelMapLayer(caffe.Layer):
             y3 = np.maximum(np.minimum(y3, map_h - 1), 0)
             x4 = np.maximum(np.minimum(x4, map_w - 1), 0)
             y4 = np.maximum(np.minimum(y4, map_h - 1), 0)
-
-            # before or after?
-            theta1 = _compute_theta(bbox[0], bbox[1], bbox[4], bbox[5])
-            theta2 = _compute_theta(bbox[2], bbox[3], bbox[6], bbox[7])
-            theta3 = _compute_theta(bbox[4], bbox[5], bbox[0], bbox[1])
-            theta4 = _compute_theta(bbox[6], bbox[7], bbox[2], bbox[3])
-            # theta1 = _compute_theta(x1, y1, x3, y3)
-            # theta2 = _compute_theta(x2, y2, x4, y4)
-            # theta3 = _compute_theta(x3, y3, x1, y1)
-            # theta4 = _compute_theta(x4, y4, x2, y2)
-
-            # positive sample's index start from 1
+            # compute link direction, +1 for background and other types
             if x1_valid and y1_valid:
                 labelmap_tl[y1, x1] = np.floor(theta1 / theta_interval) + 1
             if x2_valid and y2_valid:

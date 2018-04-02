@@ -27,7 +27,7 @@ class ProposalTargetLayer(caffe.Layer):
         self._num_weights = 8
 
         # sampled rois (0, x1, y1, x2, y2)
-        num_rois = 1 * (cfg.DUAL_ROI + 1)
+        num_rois = 2 if cfg.DUAL_ROI else 1
         top[0].reshape(num_rois, 5)
         # labels
         top[1].reshape(1, 1)
@@ -39,10 +39,9 @@ class ProposalTargetLayer(caffe.Layer):
         top[4].reshape(1, self._num_classes * self._num_weights)
 
     def forward(self, bottom, top):
-        # Text Quad
-        # Proposal ROIS(0, x1, y1, x2, y2, x3, y3, x4, y4)
+        # RoIs: (0, x1, y1, x2, y2, x3, y3, x4, y4)
         all_rois = bottom[0].data
-        # GT boxes (x1, y1, x2, y2, x3, y3, x4, y4, label)
+        # GT boxes: (x1, y1, x2, y2, x3, y3, x4, y4, label)
         gt_boxes = bottom[1].data
         # Include ground-truth boxes in the set of candidate rois
         zeros = np.zeros((gt_boxes.shape[0], 1), dtype=gt_boxes.dtype)
@@ -60,7 +59,7 @@ class ProposalTargetLayer(caffe.Layer):
             all_rois, gt_boxes, fg_rois_per_image,
             rois_per_image, self._num_classes, self._num_weights)
 
-        # dual rois pooling module
+        # Dual-RoI pooling module
         if cfg.DUAL_ROI:
             rois = quad_2_obb(np.array(quads[:, 1:9], dtype=np.float32))
             rois = dual_roi(rois)
