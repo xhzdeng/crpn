@@ -1,6 +1,6 @@
 # Corner-based Region Proposal Network
 
-CRPN is a two-stage detection framework for multi-oriented scene text. It employs corners to estimate the possible locations of text instances and a region-wise subnetwork for further classification and regression. In our experiments, it achieves F-measure of 0.876 and 0.845 on ICDAR 2013 and 2015 respectively. The paper will be released soon. 
+CRPN is a two-stage detection framework for multi-oriented scene text. It employs corners to estimate the possible locations of text instances and a region-wise subnetwork for further classification and regression. In our experiments, it achieves F-measure of 0.876 and 0.845 on ICDAR 2013 and 2015 respectively. The paper is under review at XXXX.
 
 
 ### Installation
