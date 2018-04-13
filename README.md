@@ -1,6 +1,6 @@
 # Corner-based Region Proposal Network
 
-CRPN is a two-stage detection framework for multi-oriented scene text. It employs corners to estimate the possible locations of text instances and a region-wise subnetwork for further classification and regression. In our experiments, it achieves F-measure of 0.876 and 0.845 on ICDAR 2013 and 2015 respectively. The paper is available at [arXiv](https://arxiv.org/abs/1804.02690)
+CRPN is a two-stage detection framework for multi-oriented scene text. It employs corners to estimate the possible locations of text instances and a region-wise subnetwork for further classification and regression. In our experiments, it achieves F-measure of 0.876 and 0.845 on ICDAR 2013 and 2015 respectively. The paper is available at [arXiv](https://arxiv.org/abs/1804.02690).
 
 
 ### Installation
@@ -35,7 +35,7 @@ This code is based on [Caffe](https://github.com/BVLC/caffe) and [py-faster-rcnn
     ln -s [path] VOCdevkit
     ```
 
-4. Download pretrained ImageNet VGG-16 model. You can find it at [Caffe Model Zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
+4. Download pretrained ImageNet VGG-16 model. You can find it at [Caffe Model Zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo).
 
 5. Train with YOUR dataset
     ```
@@ -64,7 +64,7 @@ This code is based on [Caffe](https://github.com/BVLC/caffe) and [py-faster-rcnn
 
 ### Models
 
-Now, you can download the pretrained model from [BaiduYun](https://pan.baidu.com/s/1Ivk4v49w0oW4VzWQMMEqcQ), which is trained 100k iters on [SynthText](https://github.com/ankush-me/SynthText). I also have uploaded a testing model trained recently. It achieves an F-measure of 0.8456 at 840p resolution on ICDAR 2015, similar performance but slightly faster than we depicted in the paper.
+Now, you can download the pretrained model from [OneDrive](https://1drv.ms/f/s!AiAzf2_GWxxlefnWI2-umwO3R9g) or [BaiduYun](https://pan.baidu.com/s/1Ivk4v49w0oW4VzWQMMEqcQ), which is trained 100k iters on [SynthText](https://github.com/ankush-me/SynthText). I also have uploaded a testing model trained recently. It achieves an F-measure of 0.8456 at 840p resolution on ICDAR 2015, similar performance but slightly faster than we depicted in the paper.
 
 
 ### Citation
