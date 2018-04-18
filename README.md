@@ -60,6 +60,13 @@ This code is based on [Caffe](https://github.com/BVLC/caffe) and [py-faster-rcnn
     output/<experiment directory>/<dataset name>/<network snapshot name>/
     ```
 
+7. Demo
+	```
+	cd $CRPN_ROOT
+	./tools/demo.py --net [NET] --model [MODEL]
+	# NET is the network arch to use, only {vgg16} in this implemention
+	# MODEL is the path of caffemodel you want to use
+	```
 
 
 ### Models

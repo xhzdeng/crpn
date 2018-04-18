@@ -14,7 +14,7 @@ See README.md for installation instructions before running.
 """
 
 import _init_paths
-from fast_rcnn.config import cfg
+from fast_rcnn.config import cfg, cfg_from_file
 from fast_rcnn.test import im_detect
 from fast_rcnn.nms_wrapper import nms
 from utils.timer import Timer
@@ -23,6 +23,7 @@ import numpy as np
 import scipy.io as sio
 import caffe, os, sys, cv2
 import argparse
+from quad.sort_points import sort_points
 
 CLASSES = ('__background__',
            'text')
@@ -65,6 +66,22 @@ def vis_detections(im, class_name, dets, thresh=0.5):
     plt.tight_layout()
     plt.draw()
 
+def vis_quads(im, class_name, dets):
+    """Visual debugging of detections."""
+    import matplotlib.pyplot as plt
+
+    quads = dets[:, :8]
+    for pts in quads:
+        # im = cv2.polylines(im, pts, True, (0, 255, 0), 3)
+        cv2.line(im, (pts[0], pts[1]), (pts[2], pts[3]), (0, 255, 0), 3)
+        cv2.line(im, (pts[2], pts[3]), (pts[4], pts[5]), (0, 255, 0), 3)
+        cv2.line(im, (pts[4], pts[5]), (pts[6], pts[7]), (0, 255, 0), 3)
+        cv2.line(im, (pts[6], pts[7]), (pts[0], pts[1]), (0, 255, 0), 3)
+    im = im[:, :, (2, 1, 0)]
+    plt.cla()
+    plt.imshow(im)
+    plt.show()
+
 def demo(net, image_name):
     """Detect object classes in an image using pre-computed object proposals."""
 
@@ -77,21 +94,36 @@ def demo(net, image_name):
     timer.tic()
     scores, boxes = im_detect(net, im)
     timer.toc()
-    print ('Detection took {:.3f}s for '
-           '{:d} object proposals').format(timer.total_time, boxes.shape[0])
 
     # Visualize detections for each class
-    CONF_THRESH = 0.8
-    NMS_THRESH = 0.3
-    for cls_ind, cls in enumerate(CLASSES[1:]):
-        cls_ind += 1 # because we skipped background
-        cls_boxes = boxes[:, 4*cls_ind:4*(cls_ind + 1)]
-        cls_scores = scores[:, cls_ind]
-        dets = np.hstack((cls_boxes,
-                          cls_scores[:, np.newaxis])).astype(np.float32)
-        keep = nms(dets, NMS_THRESH)
-        dets = dets[keep, :]
-        vis_detections(im, cls, dets, thresh=CONF_THRESH)
+    if boxes.shape[1] == 5:
+        print ('Detection took {:.3f}s for '
+            '{:d} object proposals').format(timer.total_time, boxes.shape[0])
+        CONF_THRESH = 0.8
+        NMS_THRESH = 0.3
+        for cls_ind, cls in enumerate(CLASSES[1:]):
+            cls_ind += 1  # because we skipped background
+            cls_boxes = boxes[:, 4 * cls_ind:4 * (cls_ind + 1)]
+            cls_scores = scores[:, cls_ind]
+            dets = np.hstack((cls_boxes,
+                              cls_scores[:, np.newaxis])).astype(np.float32)
+            keep = nms(dets, NMS_THRESH)
+            dets = dets[keep, :]
+            vis_detections(im, cls, dets, thresh=CONF_THRESH)
+    else:
+        CONF_THRESH = 0.5
+        for cls_ind, cls in enumerate(CLASSES[1:]):
+            cls_ind += 1  # because we skipped background
+            inds = np.where(scores[:, cls_ind] >= CONF_THRESH)[0]
+            cls_scores = scores[inds, cls_ind]
+            cls_boxes = boxes[inds, cls_ind * 8:(cls_ind + 1) * 8]
+            cls_boxes = sort_points(cls_boxes)
+            cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32, copy=False)
+            keep = nms(cls_dets, cfg.TEST.NMS)
+            cls_dets = cls_dets[keep, :]
+            print ('Detection took {:.3f}s for '
+                '{:d} text regions').format(timer.total_time, len(keep))
+            vis_quads(im, cls, cls_dets)
 
 def parse_args():
     """Parse input arguments."""
@@ -101,8 +133,13 @@ def parse_args():
     parser.add_argument('--cpu', dest='cpu_mode',
                         help='Use CPU mode (overrides --gpu)',
                         action='store_true')
+
+    #
     parser.add_argument('--net', dest='demo_net', help='Network to use [vgg16]',
-                        choices=NETS.keys(), default='vgg16')
+                        choices=NETS.keys(), default=None)
+    parser.add_argument('--model', dest='model', help='*.caffemodel file',
+                        default=None)
+
 
     args = parser.parse_args()
 
@@ -113,10 +150,20 @@ if __name__ == '__main__':
 
     args = parse_args()
 
-    prototxt = os.path.join(cfg.MODELS_DIR, NETS[args.demo_net][0],
-                            'faster_rcnn_end2end', 'test.prototxt')
-    caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models',
-                              NETS[args.demo_net][1])
+    #
+    if args.demo_net is None:
+        prototxt = os.path.join(cfg.MODELS_DIR, NETS[args.demo_net][0], 'faster_rcnn_end2end', 'test.prototxt')
+    else:
+        prototxt = os.path.join('./models', args.demo_net, 'test.pt')
+        cfg_file = os.path.join('./models', args.demo_net, 'config.yml')
+
+    if cfg_file is not None:
+        cfg_from_file(cfg_file)
+
+    if args.model is None:
+        caffemodel = os.path.join(cfg.DATA_DIR, 'faster_rcnn_models', NETS[args.demo_net][1])
+    else:
+        caffemodel = args.model
 
     if not os.path.isfile(caffemodel):
         raise IOError(('{:s} not found.\nDid you run ./data/script/'
@@ -133,12 +180,12 @@ if __name__ == '__main__':
     print '\n\nLoaded network {:s}'.format(caffemodel)
 
     # Warmup on a dummy image
-    im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
-    for i in xrange(2):
-        _, _= im_detect(net, im)
+    # im = 128 * np.ones((300, 500, 3), dtype=np.uint8)
+    # for i in xrange(2):
+    #     _, _= im_detect(net, im)
 
-    im_names = ['img_1.jpg', 'img_111.jpg', 'img_2.jpg',
-                'img_7.jpg', 'img_11.jpg']
+    im_names = ['img_1.jpg', 'img_2.jpg', 'img_3.jpg',
+                'img_4.jpg', 'img_5.jpg']
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)

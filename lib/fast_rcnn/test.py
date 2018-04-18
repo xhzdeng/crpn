@@ -44,7 +44,6 @@ def _get_image_blob(im):
     im_scale_factors = []
 
     for target_size in cfg.TEST.SCALES:
-
         if target_size != cfg.TEST.MAX_SIZE:
             im_scale = float(target_size) / float(im_size_min)
             # Prevent the biggest axis from being more than MAX_SIZE
@@ -202,21 +201,38 @@ def im_detect(net, im, boxes=None):
 def vis_detections(im, class_name, dets, thresh=0.3):
     """Visual debugging of detections."""
     import matplotlib.pyplot as plt
-    im = im[:, :, (2, 1, 0)]
-    for i in xrange(np.minimum(10, dets.shape[0])):
-        bbox = dets[i, :4]
-        score = dets[i, -1]
-        if score > thresh:
-            plt.cla()
-            plt.imshow(im)
-            plt.gca().add_patch(
-                plt.Rectangle((bbox[0], bbox[1]),
-                              bbox[2] - bbox[0],
-                              bbox[3] - bbox[1], fill=False,
-                              edgecolor='g', linewidth=3)
+
+    if dets.shape[1] == 5:
+        im = im[:, :, (2, 1, 0)]
+        for i in xrange(np.minimum(10, dets.shape[0])):
+            bbox = dets[i, :4]
+            score = dets[i, -1]
+            if score > thresh:
+                plt.cla()
+                plt.imshow(im)
+                plt.gca().add_patch(
+                    plt.Rectangle((bbox[0], bbox[1]),
+                                  bbox[2] - bbox[0],
+                                  bbox[3] - bbox[1], fill=False,
+                                  edgecolor='g', linewidth=3)
                 )
-            plt.title('{}  {:.3f}'.format(class_name, score))
-            plt.show()
+                plt.title('{}  {:.3f}'.format(class_name, score))
+                plt.show()
+    else:
+        quads = dets[:, :8]
+        for pts in quads:
+            # im = cv2.polylines(im, pts, True, (0, 255, 0), 3)
+            cv2.line(im, (pts[0], pts[1]), (pts[2], pts[3]), (0, 255, 0), 3)
+            cv2.line(im, (pts[2], pts[3]), (pts[4], pts[5]), (0, 255, 0), 3)
+            cv2.line(im, (pts[4], pts[5]), (pts[6], pts[7]), (0, 255, 0), 3)
+            cv2.line(im, (pts[6], pts[7]), (pts[0], pts[1]), (0, 255, 0), 3)
+        im = im[:, :, (2, 1, 0)]
+        plt.cla()
+        plt.imshow(im)
+        plt.show()
+        # cv2.imshow('detections', im)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
 def apply_nms(all_boxes, thresh):
     """Apply non-maximum suppression to all predicted boxes output by the
@@ -276,6 +292,7 @@ def test_net(net, imdb, max_per_image=300, thresh=0.5, vis=False):
         _t['im_detect'].toc()
 
         _t['misc'].tic()
+        # vis = True
         # skip j = 0, because it's the background class
         for j in xrange(1, imdb.num_classes):
             inds = np.where(scores[:, j] >= thresh)[0]
