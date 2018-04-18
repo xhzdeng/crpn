@@ -153,6 +153,7 @@ if __name__ == '__main__':
     #
     if args.demo_net is None:
         prototxt = os.path.join(cfg.MODELS_DIR, NETS[args.demo_net][0], 'faster_rcnn_end2end', 'test.prototxt')
+        cfg_file = None
     else:
         prototxt = os.path.join('./models', args.demo_net, 'test.pt')
         cfg_file = os.path.join('./models', args.demo_net, 'config.yml')
@@ -184,8 +185,7 @@ if __name__ == '__main__':
     # for i in xrange(2):
     #     _, _= im_detect(net, im)
 
-    im_names = ['img_1.jpg', 'img_2.jpg', 'img_3.jpg',
-                'img_4.jpg', 'img_5.jpg']
+    im_names = ['img_10.jpg', 'img_14.jpg', 'img_45.jpg']
     for im_name in im_names:
         print '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
         print 'Demo for data/demo/{}'.format(im_name)

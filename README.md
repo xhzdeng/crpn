@@ -60,7 +60,8 @@ This code is based on [Caffe](https://github.com/BVLC/caffe) and [py-faster-rcnn
     output/<experiment directory>/<dataset name>/<network snapshot name>/
     ```
 
-7. Demo
+
+### Demo
 	```
 	cd $CRPN_ROOT
 	./tools/demo.py --net [NET] --model [MODEL]
